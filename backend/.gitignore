@@ -1,0 +1,55 @@
+# Dependencies - Never commit downloaded packages
+node_modules/
+jspm_packages/
+web_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data and Caches
+pids
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+.stylelintcache
+.node_repl_history
+.cache/
+
+# Build and Output directories
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+.vuepress/dist
+*.tsbuildinfo
+*.tgz
+
+# Testing and Coverage
+coverage/
+.nyc_output/
+
+# Environment variables and Secrets (CRITICAL for security)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Keep your example environment file public
+!.env.example
+
+# Operating System Files
+.DS_Store
+Thumbs.db

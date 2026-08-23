@@ -658,21 +658,6 @@ export function App() {
           <div className="map-grid" />
           <div className="scanline" />
 
-          <div className="vicinity-banner">
-            <div className="count-row"><span>00</span><span>00</span><button className="round-mask generated admin-trigger" onClick={handleAdminMaskTap} aria-label="Signal mask"><img className="asset" src="/assets/counter-mask-transparent-v1-cropped.png" alt="" /></button><span>00</span><span>{String(visibleCount).padStart(2, "0")}</span></div>
-            <strong>SIGHTING IN YOUR<br />DIRECT VICINITY</strong>
-          </div>
-
-          {adminToken && <button className="admin-mode-badge" onClick={() => setAdminPromptOpen(true)}>
-            GOD MODE // ACTIVE
-          </button>}
-
-          <div className="signal-device" aria-label={`${visibleCount} signals`}>
-            <div className="device-lights"><i /><i /><i /><i /></div>
-            <div className="device-screen">0x{String(visibleCount).padStart(7, "0")}</div>
-            <div className="device-body"><span>‹</span><b>{visibleCount}</b><span>›</span></div>
-          </div>
-
           <div className="web-radar-shell" aria-label="Radar controls">
             <div className="web-radar css-web" aria-hidden="true">
               <span className="web-ring wr1" /><span className="web-ring wr2" />
