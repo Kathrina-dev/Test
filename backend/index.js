@@ -16,6 +16,20 @@ db.prepare(`
   )
 `).run();
 
+// 3. Create ChallengeLocations table and insert mock data
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS ChallengeLocations (
+    locationID TEXT PRIMARY KEY,
+    lat REAL,
+    lng REAL
+  )
+`).run();
+
+db.prepare(`
+  INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng)
+  VALUES ('target-1', 40.7128, -74.0060)
+`).run();
+
 // 🟢 Health Check Route
 app.get('/health', (req, res) => {
   try {
@@ -76,6 +90,10 @@ app.post('/users', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Mount specific routes
+const cetRoutes = require('./routes/cet')(db);
+app.use('/api/cet', cetRoutes);
 
 // Start Server
 const PORT = 8080;

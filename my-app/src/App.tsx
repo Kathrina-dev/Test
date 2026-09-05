@@ -185,6 +185,34 @@ export function App() {
   const [adminDeleteArmedId, setAdminDeleteArmedId] = useState<string | null>(null);
   const [developerCredit, setDeveloperCredit] = useState<{ name: string; url: string } | null>(null);
   const [notice, setNotice] = useState("SCANNER ONLINE // NYC GRID");
+  const [isGuessMode, setIsGuessMode] = useState(false);
+  const [guessCoords, setGuessCoords] = useState<[number, number] | null>(null);
+  const guessMarkerRef = useRef<Marker | null>(null);
+
+  async function submitGuess() {
+    if (!guessCoords) return;
+    try {
+      setNotice("VERIFYING COORDINATES...");
+      const res = await fetch('/api/cet/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationID: 'target-1',
+          lat: guessCoords[1],
+          lng: guessCoords[0]
+        })
+      });
+      const data = await res.json();
+      if (data.correct) {
+        setNotice(`TARGET ACQUIRED // DISTANCE: ${data.distance}KM`);
+        setIsGuessMode(false);
+      } else {
+        setNotice(`MISS // DISTANCE: ${data.distance}KM`);
+      }
+    } catch (e) {
+      setNotice("VERIFICATION FAILED");
+    }
+  }
 
   function launchIntro() {
     if (introStartedRef.current) return;
@@ -336,6 +364,56 @@ export function App() {
       markersRef.current = [];
     };
   }, [sightings, active, worldMode, adminToken]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    
+    const handleMapClick = (e: maplibregl.MapMouseEvent) => {
+      if (isGuessMode) {
+        setGuessCoords([e.lngLat.lng, e.lngLat.lat]);
+      }
+    };
+    
+    if (isGuessMode) {
+      map.on('click', handleMapClick);
+      map.getCanvas().style.cursor = 'crosshair';
+    } else {
+      map.off('click', handleMapClick);
+      map.getCanvas().style.cursor = '';
+      setGuessCoords(null);
+    }
+    
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [isGuessMode]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (guessCoords) {
+      if (!guessMarkerRef.current) {
+        const el = document.createElement('div');
+        el.className = 'guess-marker';
+        el.style.width = '24px';
+        el.style.height = '24px';
+        el.style.backgroundColor = '#ff0000';
+        el.style.borderRadius = '50%';
+        el.style.border = '2px solid white';
+        el.style.boxShadow = '0 0 10px rgba(255,0,0,0.5)';
+        guessMarkerRef.current = new maplibregl.Marker({ element: el })
+          .setLngLat(guessCoords)
+          .addTo(map);
+      } else {
+        guessMarkerRef.current.setLngLat(guessCoords);
+      }
+    } else {
+      guessMarkerRef.current?.remove();
+      guessMarkerRef.current = null;
+    }
+  }, [guessCoords]);
 
   const visibleCount = useMemo(
     () => sightings.filter((sighting) => active.has(sighting.status) && sighting.status !== "archived").length,
@@ -686,7 +764,29 @@ export function App() {
                 <circle cx="12" cy="10" r="2.8" />
               </svg>
             </button>
+            <button className={`radar-action radar-guess ${isGuessMode ? 'active' : ''}`} aria-label="Guess Location" title="Guess Location" onClick={() => {
+              setIsGuessMode(!isGuessMode);
+              if (!isGuessMode) showWorld();
+              setNotice(!isGuessMode ? "GUESS MODE // DROP A PIN" : "GUESS ABORTED");
+            }}>
+              <svg className="target-icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                <line x1="12" y1="2" x2="12" y2="6" stroke="currentColor" strokeWidth="2"/>
+                <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" strokeWidth="2"/>
+                <line x1="2" y1="12" x2="6" y2="12" stroke="currentColor" strokeWidth="2"/>
+                <line x1="18" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </button>
           </div>
+
+          {isGuessMode && guessCoords && (
+            <div className="guess-overlay" style={{ position: 'absolute', bottom: '120px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
+              <button onClick={submitGuess} style={{ padding: '10px 20px', background: '#ff003c', color: 'white', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 10px rgba(255,0,60,0.8)', letterSpacing: '2px' }}>
+                SUBMIT COORDINATES
+              </button>
+            </div>
+          )}
 
           {selected && (
             <article className={`sighting-card ${selected.status} ${selectedMedia?.imageData ? "with-media" : ""}`}>
