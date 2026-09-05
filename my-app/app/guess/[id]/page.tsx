@@ -37,11 +37,30 @@ export default function GuessPage() {
 
     const map = new maplibregl.Map({
       container: mapNode.current,
-      style: "https://tiles.openfreemap.org/styles/dark",
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm",
+          },
+        ],
+      },
       center: [0, 20],
       zoom: 1,
       attributionControl: false,
     });
+
+    // Add zoom and rotation controls to the map.
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     map.on("click", (e) => {
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
