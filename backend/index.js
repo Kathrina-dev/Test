@@ -4,6 +4,16 @@ const Database = require('better-sqlite3');
 const app = express();
 app.use(express.json());
 
+// Simple CORS middleware for local development
+app.use((req, res, next) => {
+  const allowed = process.env.ALLOW_ORIGIN || 'http://localhost:3000';
+  res.setHeader('Access-Control-Allow-Origin', allowed);
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 // 1. Initialize/Connect to the SQLite database file directly
 const db = new Database('./dev.db');
 
@@ -27,10 +37,29 @@ db.prepare(`
   )
 `).run();
 
-db.prepare(`
-  INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image)
-  VALUES ('place1', 47.5531666, 7.5299444, 'ENTRE{Why_h3_5t1ck1n6_l1k3_that}', 'place1.jpeg')
-`).run();
+// Ensure `flag` and `image` columns exist (migrate older DBs)
+try {
+  const cols = db.prepare("PRAGMA table_info(ChallengeLocations)").all();
+  const colNames = cols.map((c) => c.name);
+  if (!colNames.includes('flag')) {
+    db.prepare('ALTER TABLE ChallengeLocations ADD COLUMN flag TEXT').run();
+  }
+  if (!colNames.includes('image')) {
+    db.prepare('ALTER TABLE ChallengeLocations ADD COLUMN image TEXT').run();
+  }
+} catch (e) {
+  // ignore migration errors
+}
+
+// Insert sample challenge row for `place1` if it doesn't exist
+try {
+  db.prepare(`
+    INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image)
+    VALUES ('place1', 47.5531666, 7.5299444, 'ENTRE{Why_h3_5t1ck1n6_l1k3_that}', 'place1.jpeg')
+  `).run();
+} catch (e) {
+  // ignore insert errors
+}
 
 // 🟢 Health Check Route
 app.get('/health', (req, res) => {

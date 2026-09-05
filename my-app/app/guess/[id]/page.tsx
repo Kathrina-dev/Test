@@ -21,7 +21,8 @@ export default function GuessPage() {
 
   // Fetch challenge data
   useEffect(() => {
-    fetch(`/api/cet/challenge/${encodeURIComponent(id)}`)
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/$/, '');
+    fetch(`${apiBase}/api/cet/challenge/${encodeURIComponent(id)}`)
       .then((res) => {
         if (!res.ok) throw new Error("Challenge not found");
         return res.json();
@@ -84,7 +85,8 @@ export default function GuessPage() {
   async function submitGuess() {
     if (!guessCoords) return;
     try {
-      const res = await fetch("/api/cet/verify", {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/$/, '');
+      const res = await fetch(`${apiBase}/api/cet/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
