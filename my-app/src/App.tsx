@@ -327,6 +327,7 @@ export function App() {
         const element = document.createElement("button");
         element.className = `sighting-marker ${sighting.status}`;
         element.setAttribute("aria-label", `${label[sighting.status]}: ${sighting.title}`);
+        element.setAttribute("title", sighting.title);
         element.innerHTML = '<img class="marker-spider asset" src="/assets/spider-marker.png" alt="" aria-hidden="true">';
         element.addEventListener("click", () => {
           void openSighting(sighting);
@@ -543,133 +544,7 @@ export function App() {
   }
 
   async function openSighting(sighting: Sighting, autoplay = true) {
-    const requestId = ++sightingOpenRequestRef.current;
-    selectedAudioPlayerRef.current?.pause();
-    selectedAudioPlayerRef.current = null;
-    mediaPopupRef.current?.remove();
-    setSelected(null);
-    setSelectedMedia(null);
-    try {
-      // Frontend-served images: map sighting IDs to frontend assets.
-      const imageMap: Record<string, string> = {
-        'st-01': '/assets/hardcoded/st-01.jpg',
-        'st-02': '/assets/hardcoded/st-02.jpg',
-      };
-      const imageData = imageMap[sighting.id] || null;
-      const media = { imageData } as { audioData?: string; imageData?: string; moderation?: { keep: number; delete: number; total: number; removed: boolean } };
-      if (requestId !== sightingOpenRequestRef.current) return;
-      setSelectedMedia(media);
-      if (media.imageData && mapRef.current) {
-        const card = document.createElement("article");
-        card.className = "map-sighting-media";
-        const moderationBar = document.createElement("div");
-        moderationBar.className = "moderation-bar";
-        const keepButton = document.createElement("button");
-        keepButton.type = "button";
-        keepButton.className = "moderation-keep";
-        const deleteButton = document.createElement("button");
-        deleteButton.type = "button";
-        deleteButton.className = "moderation-delete";
-        const updateModeration = (moderation = { keep: 0, delete: 0, total: 0, removed: false }) => {
-          keepButton.textContent = `✓ ${moderation.keep}`;
-          keepButton.title = "Vote to keep report";
-          deleteButton.textContent = `🗑 ${moderation.delete}`;
-          deleteButton.title = "Vote to delete report";
-        };
-        updateModeration(media.moderation);
-        const castVote = async (vote: "keep" | "delete") => {
-          keepButton.disabled = true;
-          deleteButton.disabled = true;
-          try {
-            const voteResponse = await fetch(`/api/sightings/${encodeURIComponent(sighting.id)}/vote`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ vote }),
-            });
-            if (!voteResponse.ok) throw new Error("vote failed");
-            const result = await voteResponse.json() as { moderation: { keep: number; delete: number; total: number; removed: boolean } };
-            updateModeration(result.moderation);
-            if (result.moderation.removed) {
-              mediaPopupRef.current?.remove();
-              setSightings((items) => items.filter((item) => item.id !== sighting.id));
-              setNotice("COMMUNITY REMOVED THIS SIGHTING");
-              return;
-            }
-            setNotice(vote === "delete" ? "REMOVAL VOTE REGISTERED" : "KEEP VOTE REGISTERED");
-          } catch {
-            setNotice("MODERATION VOTE FAILED");
-          } finally {
-            keepButton.disabled = false;
-            deleteButton.disabled = false;
-          }
-        };
-        keepButton.addEventListener("click", () => void castVote("keep"));
-        deleteButton.addEventListener("click", () => void castVote("delete"));
-        moderationBar.append(keepButton, deleteButton);
-        if (adminToken) {
-          const adminDeleteButton = document.createElement("button");
-          adminDeleteButton.type = "button";
-          adminDeleteButton.className = "moderation-admin-delete";
-          adminDeleteButton.textContent = "GOD DELETE";
-          adminDeleteButton.title = "Immediately delete as administrator";
-          let armed = false;
-          let disarmTimer: ReturnType<typeof setTimeout> | null = null;
-          adminDeleteButton.addEventListener("click", () => {
-            if (!armed) {
-              armed = true;
-              adminDeleteButton.textContent = "CONFIRM DELETE";
-              setNotice("PRESS DELETE AGAIN TO CONFIRM");
-              disarmTimer = setTimeout(() => {
-                armed = false;
-                adminDeleteButton.textContent = "GOD DELETE";
-              }, 4500);
-              return;
-            }
-            if (disarmTimer) clearTimeout(disarmTimer);
-            adminDeleteButton.disabled = true;
-            void removeSightingAsAdmin(sighting);
-          });
-          moderationBar.append(adminDeleteButton);
-        }
-        card.appendChild(moderationBar);
-        const image = document.createElement("img");
-        image.src = media.imageData || '';
-        image.alt = `Image of ${sighting.title}`;
-        card.appendChild(image);
-        const action = document.createElement("button");
-        action.type = "button";
-        action.className = "sighting-playback";
-        action.textContent = media.audioData ? "▶ VIEW SIGHTING" : "VIEW SIGHTING";
-        card.appendChild(action);
-
-        let player: HTMLAudioElement | null = null;
-        if (media.audioData) {
-          player = new Audio(media.audioData);
-          selectedAudioPlayerRef.current = player;
-          player.addEventListener("play", () => { action.textContent = "Ⅱ PAUSE SIGHTING"; card.classList.add("playing"); });
-          player.addEventListener("pause", () => { action.textContent = "▶ VIEW SIGHTING"; card.classList.remove("playing"); });
-          player.addEventListener("ended", () => { action.textContent = "▶ PLAY AGAIN"; card.classList.remove("playing"); });
-          action.addEventListener("click", () => { if (!player) return; if (player.paused) player.play().catch(() => undefined); else player.pause(); });
-        }
-
-        const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 28, maxWidth: "260px", className: "spidey-media-popup" })
-          .setLngLat([sighting.longitude, sighting.latitude])
-          .setDOMContent(card)
-          .addTo(mapRef.current);
-        popup.on("close", () => player?.pause());
-        mediaPopupRef.current = popup;
-        if (autoplay) player?.play().catch(() => undefined);
-        return;
-      }
-      setSelected(sighting);
-      if (media.audioData) {
-        const player = new Audio(media.audioData);
-        selectedAudioPlayerRef.current = player;
-        if (autoplay) await player.play().catch(() => undefined);
-      }
-    } catch {
-      if (requestId === sightingOpenRequestRef.current) setSelected(sighting);
-    }
+    window.open('/guess/' + sighting.id, '_blank');
   }
 
 

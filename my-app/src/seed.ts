@@ -1,6 +1,7 @@
 import type { Sighting } from "./types.ts";
 
 export const seedSightings: Sighting[] = [
+  { id: "place1", title: "Signal: PLACE-1", description: "Unidentified arachnid trace detected. Coordinates encrypted. Triangulate the source.", latitude: 40.7480, longitude: -73.9860, status: "rumored", confidence: 99, createdAt: "2026-08-04T18:00:00Z" },
   { id: "st-01", title: "Rooftop Movement", description: "Masked figure seen crossing the buildings.", latitude: 40.7587, longitude: -73.9851, status: "rumored", confidence: 62, createdAt: "2026-08-04T18:34:00Z" },
   { id: "st-02", title: "Rescue on 5th Avenue", description: "Confirmed report by three nearby witnesses.", latitude: 40.7546, longitude: -73.9818, status: "confirmed", confidence: 91, createdAt: "2026-08-04T18:11:00Z" },
   { id: "st-03", title: "Webbing Signal", description: "Web-like material found on a building facade.", latitude: 40.7503, longitude: -73.9874, status: "confirmed", confidence: 84, createdAt: "2026-08-04T17:48:00Z" },

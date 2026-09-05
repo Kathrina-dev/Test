@@ -12,6 +12,19 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return distance;
 };
 
+exports.getChallenge = (req, res, db) => {
+  const { id } = req.params;
+  try {
+    const row = db.prepare('SELECT image FROM ChallengeLocations WHERE locationID = ?').get(id);
+    if (!row) {
+      return res.status(404).json({ error: "Challenge not found" });
+    }
+    return res.json({ id, image: row.image });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 exports.verifyGuess = (req, res, db) => {
   const { locationID, lat, lng } = req.body;
 
@@ -20,21 +33,22 @@ exports.verifyGuess = (req, res, db) => {
   }
 
   try {
-    const row = db.prepare('SELECT lat, lng FROM ChallengeLocations WHERE locationID = ?').get(locationID);
+    const row = db.prepare('SELECT lat, lng, flag FROM ChallengeLocations WHERE locationID = ?').get(locationID);
     
     if (!row) {
       return res.status(404).json({ error: "Location challenge not found" });
     }
 
     const distance = calculateDistance(lat, lng, row.lat, row.lng);
-    const thresholdKm = 50; // 50 km tolerance
+    const thresholdKm = 0.1; // 100 meters tolerance
 
     const correct = distance <= thresholdKm;
 
     return res.json({
       correct,
-      distance: Math.round(distance), // in km
-      message: correct ? "Location matched!" : "Location incorrect."
+      distance: Number(distance.toFixed(3)), // in km
+      message: correct ? "Location matched!" : "Location incorrect.",
+      flag: correct ? row.flag : null
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });

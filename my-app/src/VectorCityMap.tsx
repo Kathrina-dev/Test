@@ -215,10 +215,9 @@ export function VectorCityMap({
                 pointerEvents: "auto",
                 zIndex: 20,
               }}
-              onClick={async (e) => {
+              onClick={(e) => {
                     e.stopPropagation();
-                    // show inline preview anchored to marker
-                    setPreview({ sighting, x: posX, y: posY });
+                    window.open('/guess/' + sighting.id, '_blank');
                   }}
               aria-label={`${labelMap[sighting.status]}: ${sighting.title}`}
             >

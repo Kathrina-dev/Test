@@ -399,6 +399,8 @@ body {
 }
 .sighting-marker:hover, .sighting-marker:focus-visible { transform: scale(1.22); z-index: 10; }
 .sighting-marker.confirmed { background: var(--green); }.sighting-marker.rumored { background: var(--coral); }.sighting-marker.archived { background: #dbded7; filter: grayscale(.5); }
+.sighting-marker.challenge-dot { background: var(--amber); box-shadow: inset 0 0 0 4px var(--ink), 3px 3px 0 #08244c, 0 0 0 5px #ffc75d66; animation: challenge-pulse 1.4s steps(3, end) infinite; }
+@keyframes challenge-pulse { 0%, 100% { box-shadow: inset 0 0 0 4px var(--ink), 3px 3px 0 #08244c, 0 0 0 5px #ffc75d44; } 50% { box-shadow: inset 0 0 0 4px var(--ink), 3px 3px 0 #08244c, 0 0 0 9px #ffc75d99, 0 0 18px #ffc75d66; } }
 .marker-spider { display: block; width: 32px; height: 32px; object-fit: contain; }
 @keyframes marker-map-reveal {
   from { opacity: 0; filter: brightness(2.4) drop-shadow(0 0 8px #63e8ff); }

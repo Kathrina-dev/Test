@@ -21,13 +21,15 @@ db.prepare(`
   CREATE TABLE IF NOT EXISTS ChallengeLocations (
     locationID TEXT PRIMARY KEY,
     lat REAL,
-    lng REAL
+    lng REAL,
+    flag TEXT,
+    image TEXT
   )
 `).run();
 
 db.prepare(`
-  INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng)
-  VALUES ('target-1', 40.7128, -74.0060)
+  INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image)
+  VALUES ('place1', 47.5531666, 7.5299444, 'ENTRE{Why_h3_5t1ck1n6_l1k3_that}', 'place1.jpeg')
 `).run();
 
 // 🟢 Health Check Route
