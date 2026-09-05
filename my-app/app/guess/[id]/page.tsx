@@ -4,6 +4,15 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { ensureSession } from "../../../src/session";
+
+interface VerifyResult {
+  correct: boolean;
+  complete?: boolean;
+  flag?: string | null;
+  expired?: boolean;
+  message?: string;
+}
 
 export default function GuessPage() {
   const params = useParams();
@@ -12,17 +21,21 @@ export default function GuessPage() {
   const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guessCoords, setGuessCoords] = useState<[number, number] | null>(null);
-  const [result, setResult] = useState<{ correct: boolean; distance: number; message: string; flag?: string } | null>(null);
+  const [result, setResult] = useState<VerifyResult | null>(null);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
 
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
 
-  // Fetch challenge data
+  // Make sure a session exists for this tab (shared via localStorage).
   useEffect(() => {
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/$/, '');
-    fetch(`${apiBase}/api/cet/challenge/${encodeURIComponent(id)}`)
+    void ensureSession().catch(() => undefined);
+  }, []);
+
+  // Fetch challenge data (proxied to the backend via the Next.js rewrite).
+  useEffect(() => {
+    fetch(`/api/cet/challenge/${encodeURIComponent(id)}`)
       .then((res) => {
         if (!res.ok) throw new Error("Challenge not found");
         return res.json();
@@ -46,30 +59,20 @@ export default function GuessPage() {
             tileSize: 256,
           },
         },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-          },
-        ],
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
       },
       center: [0, 20],
       zoom: 1,
       attributionControl: false,
     });
 
-    // Add zoom and rotation controls to the map.
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.on("click", (e) => {
       const coords: [number, number] = [e.lngLat.lng, e.lngLat.lat];
       setGuessCoords(coords);
-
       if (!markerRef.current) {
-        markerRef.current = new maplibregl.Marker({ color: "#ff0000" })
-          .setLngLat(coords)
-          .addTo(map);
+        markerRef.current = new maplibregl.Marker({ color: "#ff0000" }).setLngLat(coords).addTo(map);
       } else {
         markerRef.current.setLngLat(coords);
       }
@@ -83,24 +86,22 @@ export default function GuessPage() {
     };
   }, []);
 
-  // No resize needed - using CSS transform scale instead
-
   async function submitGuess() {
     if (!guessCoords) return;
     try {
-      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/$/, '');
-      const res = await fetch(`${apiBase}/api/cet/verify`, {
+      const session = await ensureSession();
+      const res = await fetch(`/api/cet/verify`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationID: id,
-          lat: guessCoords[1],
-          lng: guessCoords[0],
-        }),
+        headers: { "Content-Type": "application/json", "X-Session-Token": session.token },
+        body: JSON.stringify({ locationID: id, lat: guessCoords[1], lng: guessCoords[0] }),
       });
-      const data = await res.json();
+      if (res.status === 410) {
+        setResult({ correct: false, expired: true, message: "Session expired — restart from the tracker." });
+        return;
+      }
+      const data = (await res.json()) as VerifyResult;
       setResult(data);
-      if (!data.correct) {
+      if (!data.correct && !data.complete) {
         setTimeout(() => setResult(null), 5000);
       }
     } catch (e) {
@@ -115,7 +116,6 @@ export default function GuessPage() {
 
   return (
     <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "#000" }}>
-      {/* Background Image */}
       {image && (
         <div
           style={{
@@ -165,7 +165,7 @@ export default function GuessPage() {
         )}
       </div>
 
-      {/* Submit Button - hidden only when correct */}
+      {/* Submit Button - hidden once solved */}
       {guessCoords && !(result?.correct) && (
         <button
           onClick={submitGuess}
@@ -208,16 +208,24 @@ export default function GuessPage() {
             boxShadow: `0 4px 24px ${result.correct ? "rgba(65,214,122,0.25)" : "rgba(255,68,68,0.25)"}`,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: result.flag ? 12 : 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: result.flag || result.expired || result.correct ? 12 : 0 }}>
             <span style={{ fontSize: 20 }}>{result.correct ? "✓" : "✗"}</span>
-            <strong style={{ fontSize: 15, letterSpacing: 1 }}>{result.correct ? "CORRECT" : "INCORRECT"}</strong>
+            <strong style={{ fontSize: 15, letterSpacing: 1 }}>
+              {result.expired ? "SESSION EXPIRED" : result.correct ? (result.complete ? "ALL SOLVED" : "CORRECT") : "INCORRECT"}
+            </strong>
             <button
               onClick={() => setResult(null)}
               style={{ marginLeft: "auto", background: "none", border: "none", color: "white", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 2px" }}
             >×</button>
           </div>
+          {result.correct && !result.complete && (
+            <div style={{ fontSize: 13, color: "#cfeaff" }}>Location confirmed. Head back to the tracker for the rest.</div>
+          )}
+          {result.expired && (
+            <div style={{ fontSize: 13, color: "#ffd0d0" }}>Your 30-minute session ran out. Restart it from the tracker to try again.</div>
+          )}
           {result.flag && (
-            <div style={{ background: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "8px 10px", fontFamily: "monospace", fontSize: 13, wordBreak: "break-all", color: "#41d67a" }}>
+            <div style={{ background: "rgba(0,0,0,0.4)", borderRadius: 4, padding: "8px 10px", fontFamily: "monospace", fontSize: 13, wordBreak: "break-all", color: "#41d67a", marginTop: 8 }}>
               {result.flag}
             </div>
           )}

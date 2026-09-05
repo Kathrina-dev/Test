@@ -2,13 +2,10 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { Sighting, SightingStatus } from "./types";
-import SightingPreview from "./SightingPreview";
 
 interface VectorCityMapProps {
   sightings: Sighting[];
-  globalSightings: Sighting[];
   activeStatuses: Set<SightingStatus>;
-  worldMode: boolean;
   onSelectSighting: (sighting: Sighting) => void;
   labelMap: Record<SightingStatus, string>;
 }
@@ -23,20 +20,9 @@ function latToPixel(lat: number, zoom: number = 13) {
   return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * Math.pow(2, zoom) * 256;
 }
 
-function pixelToLng(px: number, zoom: number = 13) {
-  return (px / (256 * Math.pow(2, zoom))) * 360 - 180;
-}
-
-function pixelToLat(py: number, zoom: number = 13) {
-  const n = Math.PI - (2 * Math.PI * py) / (256 * Math.pow(2, zoom));
-  return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-}
-
 export function VectorCityMap({
   sightings,
-  globalSightings,
   activeStatuses,
-  worldMode,
   onSelectSighting,
   labelMap,
 }: VectorCityMapProps) {
@@ -83,7 +69,7 @@ export function VectorCityMap({
 
   // Generate OSM tile grid around the center
   const mapTiles = useMemo(() => {
-    const tiles: { key: string; url: string; x: number; y: number; tx: number; ty: number; zoom: number }[] = [];
+    const tiles: { key: string; url: string; x: number; y: number }[] = [];
 
     function lngLatToTile(lng: number, lat: number, z: number) {
       const xtile = Math.floor(((lng + 180) / 360) * Math.pow(2, z));
@@ -100,25 +86,21 @@ export function VectorCityMap({
       for (let dy = -radius; dy <= radius; dy++) {
         const tx = centerTile.x + dx;
         const ty = centerTile.y + dy;
-        const tilePx = tx * 256;
-        const tilePy = ty * 256;
-        const posX = 500 + (tilePx - centerPx);
-        const posY = 400 + (tilePy - centerPy);
-        // Use Esri World Dark Gray Base (Free, no API key, high rate limit raster tiles)
+        const posX = 500 + (tx * 256 - centerPx);
+        const posY = 400 + (ty * 256 - centerPy);
+        // Esri World Dark Gray Base (free, no API key, high rate-limit raster tiles)
         const url = `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${zoom}/${ty}/${tx}`;
-        tiles.push({ key: `esri-tile-${tx}-${ty}`, url, x: posX, y: posY, tx, ty, zoom });
+        tiles.push({ key: `esri-tile-${tx}-${ty}`, url, x: posX, y: posY });
       }
     }
     return tiles;
   }, [centerPx, centerPy, zoom]);
 
-  // Visible Sightings
-  const visibleSightings = useMemo(() => {
-    const all = worldMode ? [...sightings, ...globalSightings] : sightings;
-    return all.filter((s) => activeStatuses.has(s.status));
-  }, [sightings, globalSightings, worldMode, activeStatuses]);
-
-  const [preview, setPreview] = useState<null | { sighting: Sighting; x: number; y: number }>(null);
+  // Visible sightings (filtered by the active status toggles)
+  const visibleSightings = useMemo(
+    () => sightings.filter((s) => activeStatuses.has(s.status)),
+    [sightings, activeStatuses],
+  );
 
   return (
     <div
@@ -137,7 +119,6 @@ export function VectorCityMap({
         userSelect: "none",
       }}
     >
-      {/* Real NYC Map Tiles Container with Web-Radar Electric Cyan Palette */}
       <div
         className="real-nyc-tiles-layer"
         style={{
@@ -148,34 +129,6 @@ export function VectorCityMap({
           transition: isDragging ? "none" : "transform 0.2s ease-out",
         }}
       >
-        {/* PLACE THE INLINE SVG MATRIX FILTER HERE */}
-        <svg style={{ position: "absolute", width: 0, height: 0 }}>
-          <filter id="neon-map">
-            {/* Step 1: Force baseline canvas inversion */}
-            <feComponentTransfer>
-              <feFuncR type="table" tableValues="1 0" />
-              <feFuncG type="table" tableValues="1 0" />
-              <feFuncB type="table" tableValues="1 0" />
-            </feComponentTransfer>
-            
-            {/* Step 2: Inject targeted Hex Matrix values (#02091f and #2c88ad) */}
-            <feColorMatrix
-              type="matrix"
-              values="0.16  0 0 0 0.008
-                      0.50  0 0 0 0.035
-                      0.56  0 0 0 0.121
-                      0     0 0 1 0"
-            />
-            
-            {/* Step 3: Sharp line contrast boost */}
-            <feComponentTransfer>
-              <feFuncR type="linear" slope="3" intercept="-0.1" />
-              <feFuncG type="linear" slope="3" intercept="-0.1" />
-              <feFuncB type="linear" slope="3" intercept="-0.1" />
-            </feComponentTransfer>
-          </filter>
-        </svg>
-
         {mapTiles.map((tile) => (
           <img
             key={tile.key}
@@ -190,19 +143,15 @@ export function VectorCityMap({
               height: "256px",
               display: "block",
               pointerEvents: "none",
-              /* Fine-tuned electric cyan palette filter */
               filter: "brightness(1.5) contrast(1.3) hue-rotate(165deg) saturate(300%)",
             }}
           />
         ))}
 
-        {/* Sighting Markers Overlay */}
+        {/* Sighting markers overlay */}
         {visibleSightings.map((sighting) => {
-          const px = lngToPixel(sighting.longitude, zoom);
-          const py = latToPixel(sighting.latitude, zoom);
-
-          const posX = 500 + (px - centerPx);
-          const posY = 400 + (py - centerPy);
+          const posX = 500 + (lngToPixel(sighting.longitude, zoom) - centerPx);
+          const posY = 400 + (latToPixel(sighting.latitude, zoom) - centerPy);
 
           return (
             <button
@@ -217,28 +166,15 @@ export function VectorCityMap({
                 zIndex: 20,
               }}
               onClick={(e) => {
-                    e.stopPropagation();
-                    window.open('/guess/' + sighting.id, '_blank');
-                    onSelectSighting(sighting);
-                  }}
+                e.stopPropagation();
+                onSelectSighting(sighting);
+              }}
               aria-label={`${labelMap[sighting.status]}: ${sighting.title}`}
             >
               <img className="marker-spider asset" src="/assets/spider-marker.png" alt="" aria-hidden="true" />
             </button>
           );
         })}
-          {preview && (
-            <SightingPreview
-              sighting={preview.sighting}
-              x={preview.x}
-              y={preview.y}
-              onClose={() => setPreview(null)}
-              onOpenDetails={() => {
-                setPreview(null);
-                onSelectSighting(preview.sighting);
-              }}
-            />
-          )}
       </div>
     </div>
   );

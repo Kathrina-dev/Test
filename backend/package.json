@@ -1,29 +1,21 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "CET geoguessr challenge backend",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
     "dev": "nodemon --ignore node_modules/ --ignore '*.db' --ignore '*.db-wal' --ignore '*.db-shm' index.js",
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.9.1",
-    "@prisma/client": "^7.9.1",
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "dotenv": "^17.4.2",
-    "nodemon": "^3.1.14",
-    "prisma": "^7.9.1",
-    "tsx": "^4.23.12"
+    "nodemon": "^3.1.14"
   },
   "allowScripts": {
-    "better-sqlite3@12.11.1": true,
     "better-sqlite3@13.0.3": true
   }
 }

@@ -53,3 +53,8 @@ coverage/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# SQLite runtime DB (self-seeded on startup) and WAL sidecars
+dev.db
+*.db-wal
+*.db-shm

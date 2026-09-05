@@ -1,140 +1,73 @@
 const express = require('express');
+const path = require('path');
 const Database = require('better-sqlite3');
 
 const app = express();
 app.use(express.json());
 
-// Simple CORS middleware for local development
-app.use((req, res, next) => {
-  const allowed = process.env.ALLOW_ORIGIN || 'http://localhost:3000';
-  res.setHeader('Access-Control-Allow-Origin', allowed);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
-  next();
-});
+// Connect to the SQLite database that lives next to this file, regardless of
+// the working directory the process is launched from.
+const db = new Database(path.join(__dirname, 'dev.db'));
+db.pragma('journal_mode = WAL');
 
-// 1. Initialize/Connect to the SQLite database file directly
-const db = new Database('./dev.db');
-
-// 2. Automatically create the User table if it doesn't exist yet
+// --- Schema -------------------------------------------------------------
 db.prepare(`
-  CREATE TABLE IF NOT EXISTS User (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT
+  CREATE TABLE IF NOT EXISTS ChallengeLocations (
+    locationID TEXT PRIMARY KEY,
+    lat REAL,
+    lng REAL,
+    flag TEXT,
+    image TEXT
   )
 `).run();
 
-// 3. Create ChallengeLocations table and insert mock data
-  // Seed the ChallengeLocations table with provided places (if not already present)
-  const seedPlaces = [
-    { id: 'place1', lat: 35.1563889, lng: 129.141111, flag: null, image: 'place1.png' },
-    { id: 'place2', lat: 42.996111, lng: -78.956667, flag: null, image: 'place2.png' },
-    { id: 'place3', lat: 56.688805, lng: 9.068584, flag: null, image: 'place3.png' },
-    { id: 'place4', lat: 35.290556, lng: 136.736667, flag: null, image: 'place4.png' },
-    { id: 'place5', lat: 24.600056, lng: 120.999055, flag: null, image: 'place5.png' },
-    { id: 'place6', lat: 47.553167, lng: 7.529945, flag: null, image: 'place6.png' },
-    { id: 'place7', lat: 34.687889, lng: 135.188, flag: null, image: 'place7.png' },
-    { id: 'place8', lat: 40.753556, lng: -73.934305, flag: null, image: 'place8.png' },
-  ];
-  const insertStmt = db.prepare('INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image) VALUES (?, ?, ?, ?, ?)');
-  for (const p of seedPlaces) {
-    insertStmt.run(p.id, p.lat, p.lng, p.flag, p.image);
-  }
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS Sessions (
+    token TEXT PRIMARY KEY,
+    createdAt INTEGER NOT NULL,
+    expiresAt INTEGER NOT NULL,
+    solved TEXT NOT NULL DEFAULT '[]'
+  )
+`).run();
 
+// --- Seed challenge locations (real-world answers) ----------------------
+const seedPlaces = [
+  { id: 'place1', lat: 35.1563889, lng: 129.141111, image: 'place1.png' },
+  { id: 'place2', lat: 42.996111, lng: -78.956667, image: 'place2.png' },
+  { id: 'place3', lat: 56.688805, lng: 9.068584, image: 'place3.png' },
+  { id: 'place4', lat: 35.290556, lng: 136.736667, image: 'place4.png' },
+  { id: 'place5', lat: 24.600056, lng: 120.999055, image: 'place5.png' },
+  { id: 'place6', lat: 47.553167, lng: 7.529945, image: 'place6.png' },
+  { id: 'place7', lat: 34.687889, lng: 135.188, image: 'place7.png' },
+  { id: 'place8', lat: 40.753556, lng: -73.934305, image: 'place8.png' },
+];
+const insertStmt = db.prepare(
+  'INSERT INTO ChallengeLocations (locationID, lat, lng, flag, image) VALUES (?, ?, ?, NULL, ?) ' +
+  'ON CONFLICT(locationID) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, image = excluded.image'
+);
+for (const p of seedPlaces) insertStmt.run(p.id, p.lat, p.lng, p.image);
 
-// Ensure `flag` and `image` columns exist (migrate older DBs)
-try {
-  const cols = db.prepare("PRAGMA table_info(ChallengeLocations)").all();
-  const colNames = cols.map((c) => c.name);
-  if (!colNames.includes('flag')) {
-    db.prepare('ALTER TABLE ChallengeLocations ADD COLUMN flag TEXT').run();
-  }
-  if (!colNames.includes('image')) {
-    db.prepare('ALTER TABLE ChallengeLocations ADD COLUMN image TEXT').run();
-  }
-} catch (e) {
-  // ignore migration errors
-}
+// Drop any stale helper/typo rows from earlier iterations of the DB.
+db.prepare("DELETE FROM ChallengeLocations WHERE locationID NOT GLOB 'place[0-9]'").run();
 
-// Insert sample challenge row for `place1` if it doesn't exist
-try {
-  db.prepare(`
-    INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image)
-    VALUES ('place1', 47.5531666, 7.5299444, 'ENTRE{Why_h3_5t1ck1n6_l1k3_that}', 'place1.jpeg')
-  `).run();
-} catch (e) {
-  // ignore insert errors
-}
-
-// 🟢 Health Check Route
+// --- Routes -------------------------------------------------------------
 app.get('/health', (req, res) => {
   try {
-    // Run a simple, native SQL test query
     const result = db.prepare('SELECT 1 AS test').get();
-    
     if (result && result.test === 1) {
-      res.status(200).json({
-        status: 'UP',
-        timestamp: new Date(),
-        services: {
-          database: 'HEALTHY',
-          server: 'HEALTHY'
-        }
-      });
-    } else {
-      throw new Error("Database responded unexpectedly");
+      return res.status(200).json({ status: 'UP', database: 'HEALTHY' });
     }
+    throw new Error('Database responded unexpectedly');
   } catch (error) {
-    res.status(500).json({
-      status: 'DOWN',
-      timestamp: new Date(),
-      error: error.message
-    });
+    return res.status(500).json({ status: 'DOWN', error: error.message });
   }
 });
 
-// 📁 GET Route: Fetch all users
-app.get('/users', (req, res) => {
-  try {
-    const users = db.prepare('SELECT * FROM User').all();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 📥 POST Route: Create a user (For Postman testing)
-app.post('/users', (req, res) => {
-  const { email, name } = req.body;
-  
-  if (!email) {
-    return res.status(400).json({ error: "Email is required" });
-  }
-
-  try {
-    const insert = db.prepare('INSERT INTO User (email, name) VALUES (?, ?)');
-    const result = insert.run(email, name || null);
-    
-    res.status(201).json({
-      message: "User created successfully!",
-      userId: result.lastInsertRowid
-    });
-  } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Mount specific routes
 const cetRoutes = require('./routes/cet')(db);
 app.use('/api/cet', cetRoutes);
 
-// Start Server
-const PORT = 8080;
+// --- Start --------------------------------------------------------------
+const PORT = process.env.PORT_BACKEND || 8080;
 app.listen(PORT, () => {
-  console.log(`🚀 Server is flying safely on http://localhost:${PORT}`);
+  console.log(`🚀 CET backend running on http://localhost:${PORT}`);
 });
