@@ -83,7 +83,7 @@ export function VectorCityMap({
 
   // Generate OSM tile grid around the center
   const mapTiles = useMemo(() => {
-    const tiles: { key: string; url: string; x: number; y: number }[] = [];
+    const tiles: { key: string; url: string; x: number; y: number; tx: number; ty: number; zoom: number }[] = [];
 
     function lngLatToTile(lng: number, lat: number, z: number) {
       const xtile = Math.floor(((lng + 180) / 360) * Math.pow(2, z));
@@ -104,8 +104,9 @@ export function VectorCityMap({
         const tilePy = ty * 256;
         const posX = 500 + (tilePx - centerPx);
         const posY = 400 + (tilePy - centerPy);
-        const url = `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
-        tiles.push({ key: `osm-tile-${tx}-${ty}`, url, x: posX, y: posY });
+        // Use Esri World Dark Gray Base (Free, no API key, high rate limit raster tiles)
+        const url = `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${zoom}/${ty}/${tx}`;
+        tiles.push({ key: `esri-tile-${tx}-${ty}`, url, x: posX, y: posY, tx, ty, zoom });
       }
     }
     return tiles;
@@ -189,8 +190,8 @@ export function VectorCityMap({
               height: "256px",
               display: "block",
               pointerEvents: "none",
-              /* Fine-tuned mix to land exactly on #02091f and #2c88ad */
-              filter: "brightness(2.1) contrast(1.8) sepia(1) hue-rotate(168deg) saturate(650%)",
+              /* Fine-tuned electric cyan palette filter */
+              filter: "brightness(1.5) contrast(1.3) hue-rotate(165deg) saturate(300%)",
             }}
           />
         ))}

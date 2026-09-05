@@ -37,23 +37,7 @@ export default function GuessPage() {
 
     const map = new maplibregl.Map({
       container: mapNode.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-          },
-        },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-          },
-        ],
-      },
+      style: "https://tiles.openfreemap.org/styles/dark",
       center: [0, 20],
       zoom: 1,
       attributionControl: false,
