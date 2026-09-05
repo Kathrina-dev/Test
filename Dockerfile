@@ -10,7 +10,8 @@ WORKDIR /app
 
 # Backend production dependencies (native module compiled here).
 COPY backend/package.json backend/package-lock.json ./backend/
-RUN cd backend && npm ci --omit=dev
+# RUN cd backend && npm ci --omit=dev
+RUN cd backend && npm_config_build_from_source=false npm ci --omit=dev
 
 # Frontend: install all deps, then build.
 COPY my-app/package.json my-app/package-lock.json ./my-app/

@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon --ignore node_modules/ --ignore '*.db' --ignore '*.db-wal' --ignore '*.db-shm' index.js",
+    "dev": "npx nodemon --ignore node_modules/ --ignore '*.db' --ignore '*.db-wal' --ignore '*.db-shm' index.js",
     "start": "node index.js"
   },
   "dependencies": {

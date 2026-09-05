@@ -5,7 +5,9 @@ import type { Sighting, SightingStatus } from "./types";
 
 interface VectorCityMapProps {
   sightings: Sighting[];
+  globalSightings?: Sighting[];
   activeStatuses: Set<SightingStatus>;
+  worldMode?: boolean;
   onSelectSighting: (sighting: Sighting) => void;
   labelMap: Record<SightingStatus, string>;
 }
