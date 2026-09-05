@@ -27,15 +27,22 @@ db.prepare(`
 `).run();
 
 // 3. Create ChallengeLocations table and insert mock data
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS ChallengeLocations (
-    locationID TEXT PRIMARY KEY,
-    lat REAL,
-    lng REAL,
-    flag TEXT,
-    image TEXT
-  )
-`).run();
+  // Seed the ChallengeLocations table with provided places (if not already present)
+  const seedPlaces = [
+    { id: 'place1', lat: 35.1563889, lng: 129.141111, flag: null, image: 'place1.png' },
+    { id: 'place2', lat: 42.996111, lng: -78.956667, flag: null, image: 'place2.png' },
+    { id: 'place3', lat: 56.688805, lng: 9.068584, flag: null, image: 'place3.png' },
+    { id: 'place4', lat: 35.290556, lng: 136.736667, flag: null, image: 'place4.png' },
+    { id: 'place5', lat: 24.600056, lng: 120.999055, flag: null, image: 'place5.png' },
+    { id: 'place6', lat: 47.553167, lng: 7.529945, flag: null, image: 'place6.png' },
+    { id: 'place7', lat: 34.687889, lng: 135.188, flag: null, image: 'place7.png' },
+    { id: 'place8', lat: 40.753556, lng: -73.934305, flag: null, image: 'place8.png' },
+  ];
+  const insertStmt = db.prepare('INSERT OR IGNORE INTO ChallengeLocations (locationID, lat, lng, flag, image) VALUES (?, ?, ?, ?, ?)');
+  for (const p of seedPlaces) {
+    insertStmt.run(p.id, p.lat, p.lng, p.flag, p.image);
+  }
+
 
 // Ensure `flag` and `image` columns exist (migrate older DBs)
 try {

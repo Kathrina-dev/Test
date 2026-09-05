@@ -545,6 +545,15 @@ export function App() {
 
   async function openSighting(sighting: Sighting, autoplay = true) {
     window.open('/guess/' + sighting.id, '_blank');
+    setSelected(sighting);
+    
+    // map the image. If ID is "loc-01", we want "/place1.png"
+    const match = sighting.id.match(/loc-0?(\d+)/);
+    if (match) {
+      setSelectedMedia({ imageData: `/place${match[1]}.png` });
+    } else {
+      setSelectedMedia(null);
+    }
   }
 
 

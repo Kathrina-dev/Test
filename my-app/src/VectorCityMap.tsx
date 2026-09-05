@@ -219,6 +219,7 @@ export function VectorCityMap({
               onClick={(e) => {
                     e.stopPropagation();
                     window.open('/guess/' + sighting.id, '_blank');
+                    onSelectSighting(sighting);
                   }}
               aria-label={`${labelMap[sighting.status]}: ${sighting.title}`}
             >
