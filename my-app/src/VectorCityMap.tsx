@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { Sighting, SightingStatus } from "./types";
+import SightingPreview from "./SightingPreview";
 
 interface VectorCityMapProps {
   sightings: Sighting[];
@@ -42,22 +43,20 @@ export function VectorCityMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
-
-  // Center coordinate around NYC Midtown Manhattan at fixed Zoom 13
   const centerLng = -73.9857;
   const centerLat = 40.7428;
   const zoom = 13;
 
-  const centerPx = useMemo(() => lngToPixel(centerLng, zoom), []);
-  const centerPy = useMemo(() => latToPixel(centerLat, zoom), []);
+  const centerPx = useMemo(() => lngToPixel(centerLng, zoom), [centerLng, zoom]);
+  const centerPy = useMemo(() => latToPixel(centerLat, zoom), [centerLat, zoom]);
 
   // Bounded Panning Extent (Prevents dragging off NYC)
   const MAX_PAN_X = 350;
   const MAX_PAN_Y = 380;
+  const dragStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
 
   function handleMouseDown(e: React.MouseEvent) {
-    if ((e.target as HTMLElement).closest(".sighting-marker-btn")) return;
+    if ((e.target as HTMLElement).closest('.sighting-marker-btn')) return;
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -82,33 +81,31 @@ export function VectorCityMap({
     setIsDragging(false);
   }
 
-  // Generate CartoDB Dark NYC Map Tiles around Midtown Manhattan
+  // Generate OSM tile grid around the center
   const mapTiles = useMemo(() => {
     const tiles: { key: string; url: string; x: number; y: number }[] = [];
-    const minTx = 2408;
-    const maxTx = 2416;
-    const minTy = 3075;
-    const maxTy = 3084;
 
-    const subdomains = ["a", "b", "c", "d"];
+    function lngLatToTile(lng: number, lat: number, z: number) {
+      const xtile = Math.floor(((lng + 180) / 360) * Math.pow(2, z));
+      const radLat = (lat * Math.PI) / 180;
+      const ytile = Math.floor(
+        ((1 - Math.log(Math.tan(radLat) + 1 / Math.cos(radLat)) / Math.PI) / 2) * Math.pow(2, z)
+      );
+      return { x: xtile, y: ytile };
+    }
 
-    for (let tx = minTx; tx <= maxTx; tx++) {
-      for (let ty = minTy; ty <= maxTy; ty++) {
-        const sub = subdomains[(tx + ty) % subdomains.length];
+    const centerTile = lngLatToTile(centerLng, centerLat, zoom);
+    const radius = 3;
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const tx = centerTile.x + dx;
+        const ty = centerTile.y + dy;
         const tilePx = tx * 256;
         const tilePy = ty * 256;
-
-        // Position tile relative to Midtown center (500, 400)
         const posX = 500 + (tilePx - centerPx);
         const posY = 400 + (tilePy - centerPy);
-
-        const url = `https://${sub}.basemaps.cartocdn.com/rastertiles/dark_nolabels/${zoom}/${tx}/${ty}@2x.png`;
-        tiles.push({
-          key: `carto-tile-${tx}-${ty}`,
-          url,
-          x: posX,
-          y: posY,
-        });
+        const url = `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
+        tiles.push({ key: `osm-tile-${tx}-${ty}`, url, x: posX, y: posY });
       }
     }
     return tiles;
@@ -119,6 +116,8 @@ export function VectorCityMap({
     const all = worldMode ? [...sightings, ...globalSightings] : sightings;
     return all.filter((s) => activeStatuses.has(s.status));
   }, [sightings, globalSightings, worldMode, activeStatuses]);
+
+  const [preview, setPreview] = useState<null | { sighting: Sighting; x: number; y: number }>(null);
 
   return (
     <div
@@ -216,16 +215,29 @@ export function VectorCityMap({
                 pointerEvents: "auto",
                 zIndex: 20,
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectSighting(sighting);
-              }}
+              onClick={async (e) => {
+                    e.stopPropagation();
+                    // show inline preview anchored to marker
+                    setPreview({ sighting, x: posX, y: posY });
+                  }}
               aria-label={`${labelMap[sighting.status]}: ${sighting.title}`}
             >
               <img className="marker-spider asset" src="/assets/spider-marker.png" alt="" aria-hidden="true" />
             </button>
           );
         })}
+          {preview && (
+            <SightingPreview
+              sighting={preview.sighting}
+              x={preview.x}
+              y={preview.y}
+              onClose={() => setPreview(null)}
+              onOpenDetails={() => {
+                setPreview(null);
+                onSelectSighting(preview.sighting);
+              }}
+            />
+          )}
       </div>
     </div>
   );

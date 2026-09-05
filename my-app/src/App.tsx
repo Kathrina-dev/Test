@@ -472,9 +472,13 @@ export function App() {
     setSelected(null);
     setSelectedMedia(null);
     try {
-      const response = await fetch(`/api/sightings/${encodeURIComponent(sighting.id)}/media`);
-      if (!response.ok) throw new Error("media lookup failed");
-      const media = await response.json() as { audioData?: string; imageData?: string; moderation?: { keep: number; delete: number; total: number; removed: boolean } };
+      // Frontend-served images: map sighting IDs to frontend assets.
+      const imageMap: Record<string, string> = {
+        'st-01': '/assets/hardcoded/st-01.jpg',
+        'st-02': '/assets/hardcoded/st-02.jpg',
+      };
+      const imageData = imageMap[sighting.id] || null;
+      const media = { imageData } as { audioData?: string; imageData?: string; moderation?: { keep: number; delete: number; total: number; removed: boolean } };
       if (requestId !== sightingOpenRequestRef.current) return;
       setSelectedMedia(media);
       if (media.imageData && mapRef.current) {
@@ -551,7 +555,7 @@ export function App() {
         }
         card.appendChild(moderationBar);
         const image = document.createElement("img");
-        image.src = media.imageData;
+        image.src = media.imageData || '';
         image.alt = `Image of ${sighting.title}`;
         card.appendChild(image);
         const action = document.createElement("button");
